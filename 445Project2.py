@@ -5,30 +5,74 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor # Added RandomForestRegressor
+from sklearn.metrics import mean_squared_error, r2_score
 
-# Load dataset
-df = pd.read_csv('V:\My Documents\Assignments\TariffData.csv')
+DATA_FILE_PATH = r'C:\Users\21ada\445Project2\TariffData.csv' # Path Changes for Each person
 
-# Remove columns with all missing values
+# Loading the Data
+try:
+    df = pd.read_csv(DATA_FILE_PATH)
+    print(f"Successfully loaded data from: {DATA_FILE_PATH}")
+except FileNotFoundError:
+    print(f"Error: Data file not found at {DATA_FILE_PATH}")
+    print("Please ensure the file path is correct.")
+    exit()
+except Exception as e:
+    print(f"An error occurred loading the CSV: {e}")
+    exit()
+
+# Cleaning
 df = df.dropna(axis=1, how='all')
-
-# Display basic info
 print("Shape after dropping empty columns:", df.shape)
-print("Columns:", list(df.columns))
 
-# Specify the target column (update this to match one of the printed column names)
+# Targets / Features
 target_column = '2022'
 if target_column not in df.columns:
-    raise KeyError(f"Target column '{target_column}' not found. Available columns: {list(df.columns)}")
+    potential_targets = [col for col in df.columns if isinstance(col, (int, str)) and '20' in str(col)]
+    if potential_targets:
+        target_column = potential_targets[-1]
+        print(f"Warning: Target column '2022' not found. Using '{target_column}' as target.")
+    else:
+        raise KeyError(f"Target column '2022' not found and no likely alternative found. Available columns: {list(df.columns)}")
 
-# Identify feature types
-numeric_features = df.select_dtypes(include=['int64', 'float64']).columns.drop(target_column).tolist()
+numeric_features = df.select_dtypes(include=np.number).columns.drop(target_column, errors='ignore').tolist()
 categorical_features = df.select_dtypes(include=['object', 'category']).columns.tolist()
 
-# Drop numeric features with all missing (if any slipped through)
-numeric_features = [col for col in numeric_features if df[col].notna().any()]
+if target_column in numeric_features: numeric_features.remove(target_column)
+if target_column in categorical_features: categorical_features.remove(target_column)
 
-# Define transformers
+numeric_features = [col for col in numeric_features if col in df.columns and df[col].notna().any()]
+categorical_features = [col for col in categorical_features if col in df.columns and df[col].notna().any()]
+
+# Getting the columns
+country_column = None
+potential_country_cols = [col for col in df.columns if 'country' in str(col).lower() or 'code' in str(col).lower() or 'entity' in str(col).lower()]
+if potential_country_cols:
+    cat_country_cols = [col for col in potential_country_cols if col in categorical_features]
+    if cat_country_cols:
+        country_column = cat_country_cols[0]
+        print(f"Identified '{country_column}' as the categorical country identifier column.")
+    else: # Checking other potential columns if no categorical found
+        non_feature_country_cols = [col for col in potential_country_cols if col not in numeric_features and col not in categorical_features and col != target_column]
+        if non_feature_country_cols:
+             country_column = non_feature_country_cols[0]
+             print(f"Identified '{country_column}' as a potential country identifier (not used as feature).")
+        elif potential_country_cols: # Fallback
+             country_column = potential_country_cols[0]
+             print(f"Identified '{country_column}' as potential country identifier. Checking feature status...")
+             if country_column in numeric_features:
+                 print(f"Warning: Treating numeric column '{country_column}' as identifier, removing from numeric features.")
+                 numeric_features.remove(country_column)
+             elif country_column in categorical_features:
+                 print(f"Warning: Assuming categorical column '{country_column}' is identifier. Decide whether to remove from features.")
+
+
+if not country_column:
+    print("Warning: Could not reliably identify a country column. Using DataFrame index for identification.")
+
+# For the pre-processing pipeline
 numeric_transformer = Pipeline(steps=[
     ('imputer', SimpleImputer(strategy='mean')),
     ('scaler', StandardScaler())
@@ -36,104 +80,159 @@ numeric_transformer = Pipeline(steps=[
 
 categorical_transformer = Pipeline(steps=[
     ('imputer', SimpleImputer(strategy='most_frequent')),
-    ('onehot', OneHotEncoder(handle_unknown='ignore'))
+    ('onehot', OneHotEncoder(handle_unknown='ignore', sparse_output=False))
 ])
 
-# Combine transformers
+# Feature list
+features_for_preprocessing = numeric_features + categorical_features
+# Columns to be dropped (target and country if only for ID)
+cols_to_drop = [target_column]
+if country_column and country_column not in features_for_preprocessing and country_column in df.columns:
+     cols_to_drop.append(country_column) # Drop country column if only used for ID
+
+# Preprocessor
 preprocessor = ColumnTransformer(
     transformers=[
-        ('num', numeric_transformer, numeric_features),
-        ('cat', categorical_transformer, categorical_features)
-    ])
+        # Ensure lists only have existing columns
+        ('num', numeric_transformer, [col for col in numeric_features if col in df.columns]),
+        ('cat', categorical_transformer, [col for col in categorical_features if col in df.columns])
+    ],
+    remainder='drop' # Drop columns not specified (like ID columns or others)
+    )
 
-# Split data into features and target
-X = df.drop(columns=[target_column])
+# Data prep / splitting
+X = df.drop(columns=cols_to_drop, errors='ignore')
 y = df[target_column]
 
-# Combine X and y to drop NaNs from target
-combined = pd.concat([X, y], axis=1)
-combined = combined.dropna(subset=[target_column])
+# Handle potential NaNs in target *before* splitting
+valid_target_indices = y.dropna().index
+X = X.loc[valid_target_indices].copy()
+y = y.loc[valid_target_indices].copy()
 
-# Split back into features and target
-X = combined.drop(columns=[target_column])
-y = combined[target_column]
+# Store country/identifier info aligned with X
+if country_column and country_column in df.columns:
+    identifier_info = df.loc[valid_target_indices, country_column].copy()
+elif country_column: # If identified but maybe already dropped as not a feature
+    identifier_info = df.loc[valid_target_indices, country_column].copy() # Try loading it again just for ID
+else:
+    identifier_info = pd.Series(X.index, index=X.index, name="Index")
 
+if X.empty or y.empty:
+    raise ValueError("No data remaining after dropping NaNs in the target variable.")
 
-# Split into train/test sets
+# Splitting into train/test sets
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-# Fit and transform training data, transform test data
-X_train_processed = preprocessor.fit_transform(X_train)
-X_test_processed = preprocessor.transform(X_test)
+# Store identifier info corresponding to the test set
+identifier_info_test = identifier_info.loc[X_test.index]
+identifier_col_name = identifier_info_test.name # Get the actual name ('Country Code', 'Index', etc.)
+
+# Fitting Preprocessor and Transforming our Data
+try:
+    print("Fitting preprocessor...")
+    # Define features for fitting based on columns available in X_train
+    fit_numeric_features = [col for col in numeric_features if col in X_train.columns]
+    fit_categorical_features = [col for col in categorical_features if col in X_train.columns]
+
+    # Updating preprocessor's feature lists before fitting
+    preprocessor.transformers_ = [
+        ('num', numeric_transformer, fit_numeric_features),
+        ('cat', categorical_transformer, fit_categorical_features)
+    ]
+    preprocessor.fit(X_train) # Fitting on the actual X_train columns
+
+    print("Transforming training data...")
+    X_train_processed = preprocessor.transform(X_train)
+
+    print("Transforming test data...")
+    X_test_processed = preprocessor.transform(X_test)
+
+except Exception as e:
+    print(f"Error during preprocessing: {e}")
+    # Adding more debug info if needed
+    print("Columns in X_train:", list(X_train.columns))
+    print("Numeric features expected:", fit_numeric_features)
+    print("Categorical features expected:", fit_categorical_features)
+    raise e # Re-raising the exception after printing info
+
 
 print("Preprocessing complete.")
 print("Processed training shape:", X_train_processed.shape)
 print("Processed test shape:", X_test_processed.shape)
 
-from sklearn.linear_model import LinearRegression
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error, r2_score
+# Training and Evaluationg models
+models = {}
+predictions = {}
+evaluations = {}
 
-# === Step 1: Choose and train a model ===
-# You can swap this with other models like RandomForestRegressor()
-model = LinearRegression()
-model.fit(X_train_processed, y_train)
-
-# === Step 2: Make predictions ===
-y_pred = model.predict(X_test_processed)
-
-# Replace with the actual name of the column containing country info
-country_column = 'Country Code'  # or 'Country', 'Country Code', etc.
-
-# Extract the country info from X_test using the original indices
-country_info = X_test[country_column].reset_index(drop=True)
-
-# Combine predictions, actual values, and country info
-results_df = pd.DataFrame({
-    'Country': country_info,
-    'Actual': y_test.reset_index(drop=True),
-    'Predicted': np.round(y_pred, 2)
-})
-
-# Show first 10 rows
-print(results_df.head(10))
-
-# Adding a gradient boosting regressor
-from sklearn.linear_model import LinearRegression
-from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.metrics import mean_squared_error, r2_score
-
-# === Step 1: Train and evaluate Linear Regression ===
+# === Linear Regression ===
+print("\n--- Training & Evaluating Linear Regression ---")
 lr = LinearRegression()
 lr.fit(X_train_processed, y_train)
 y_pred_lr = lr.predict(X_test_processed)
+models['Linear Regression'] = lr
+predictions['Linear Regression'] = y_pred_lr
+evaluations['Linear Regression'] = {
+    'MSE': mean_squared_error(y_test, y_pred_lr),
+    'R2': r2_score(y_test, y_pred_lr)
+}
+print(f"  MSE: {evaluations['Linear Regression']['MSE']:.4f}")
+print(f"  R²:  {evaluations['Linear Regression']['R2']:.4f}")
 
-mse_lr = mean_squared_error(y_test, y_pred_lr)
-r2_lr  = r2_score(y_test, y_pred_lr)
-print("\nLinear Regression Evaluation:")
-print(f"  MSE: {mse_lr:.2f}")
-print(f"  R²:  {r2_lr:.2f}")
-
-# === Step 2: Train and evaluate Gradient Boosting Regressor ===
+# === Gradient Boosting Regressor ===
+print("\n--- Training & Evaluating Gradient Boosting Regressor ---")
 gb = GradientBoostingRegressor(
-    n_estimators=100,
-    learning_rate=0.1,
-    max_depth=3,
-    random_state=42
+    n_estimators=100, learning_rate=0.1, max_depth=3, random_state=42
 )
 gb.fit(X_train_processed, y_train)
 y_pred_gb = gb.predict(X_test_processed)
+models['Gradient Boosting'] = gb
+predictions['Gradient Boosting'] = y_pred_gb
+evaluations['Gradient Boosting'] = {
+    'MSE': mean_squared_error(y_test, y_pred_gb),
+    'R2': r2_score(y_test, y_pred_gb)
+}
+print(f"  MSE: {evaluations['Gradient Boosting']['MSE']:.4f}")
+print(f"  R²:  {evaluations['Gradient Boosting']['R2']:.4f}")
 
-# Add GB predictions to your results DataFrame
-results_df['Predicted_GB'] = np.round(y_pred_gb, 2)
+# === Random Forest ===
+print("\n--- Training & Evaluating Random Forest Regressor ---") # Added section
+rf = RandomForestRegressor(
+    n_estimators=100,   # Number of trees
+    random_state=42,    # This is just so it is repeatable
+    n_jobs=-1,
+    min_samples_leaf=3  # Helps prevent overfitting
+)
+rf.fit(X_train_processed, y_train)
+y_pred_rf = rf.predict(X_test_processed)
+models['Random Forest'] = rf
+predictions['Random Forest'] = y_pred_rf
+evaluations['Random Forest'] = {
+    'MSE': mean_squared_error(y_test, y_pred_rf),
+    'R2': r2_score(y_test, y_pred_rf)
+}
+print(f"  MSE: {evaluations['Random Forest']['MSE']:.4f}")
+print(f"  R²:  {evaluations['Random Forest']['R2']:.4f}")
 
-mse_gb = mean_squared_error(y_test, y_pred_gb)
-r2_gb  = r2_score(y_test, y_pred_gb)
-print("\nGradient Boosting Regressor Evaluation:")
-print(f"  MSE: {mse_gb:.2f}")
-print(f"  R²:  {r2_gb:.2f}")
 
-# === Optional: compare side-by-side ===
-print("\nComparison:\n", results_df.head(10))
+# Results
+results_df = pd.DataFrame({
+    identifier_col_name: identifier_info_test.reset_index(drop=True),
+    'Actual': y_test.reset_index(drop=True),
+    'Predicted_LR': np.round(y_pred_lr, 2),
+    'Predicted_GB': np.round(y_pred_gb, 2),
+    'Predicted_RF': np.round(y_pred_rf, 2)  # Added RF predictions
+})
+
+print("\n--- Comparison of Model Predictions (First 10 Rows) ---")
+print(results_df.head(10))
+
+print("\n--- Model Evaluation Summary ---")
+for name, metrics in evaluations.items():
+    print(f"{name}:")
+    print(f"  MSE: {metrics['MSE']:.4f}")
+    print(f"  R²:  {metrics['R2']:.4f}")
+
+print("\nScript finished.")
