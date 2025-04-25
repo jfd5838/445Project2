@@ -100,14 +100,7 @@ results_df = pd.DataFrame({
 # Show first 10 rows
 print(results_df.head(10))
 
-
-# Show the first 10 rows
-print(results_df.head(10))
-
-
-
-
-# Adding a gradient boosting regressor 
+# Adding a gradient boosting regressor
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, r2_score
