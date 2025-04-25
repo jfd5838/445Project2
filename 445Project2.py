@@ -105,12 +105,42 @@ print(results_df.head(10))
 print(results_df.head(10))
 
 
-# === Step 3: Evaluate the model ===
-mse = mean_squared_error(y_test, y_pred)
-r2 = r2_score(y_test, y_pred)
-
-print("\nModel Evaluation:")
-print("Mean Squared Error (MSE):", mse)
-print("R^2 Score:", r2)
 
 
+# Adding a gradient boosting regressor 
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.metrics import mean_squared_error, r2_score
+
+# === Step 1: Train and evaluate Linear Regression ===
+lr = LinearRegression()
+lr.fit(X_train_processed, y_train)
+y_pred_lr = lr.predict(X_test_processed)
+
+mse_lr = mean_squared_error(y_test, y_pred_lr)
+r2_lr  = r2_score(y_test, y_pred_lr)
+print("\nLinear Regression Evaluation:")
+print(f"  MSE: {mse_lr:.2f}")
+print(f"  R²:  {r2_lr:.2f}")
+
+# === Step 2: Train and evaluate Gradient Boosting Regressor ===
+gb = GradientBoostingRegressor(
+    n_estimators=100,
+    learning_rate=0.1,
+    max_depth=3,
+    random_state=42
+)
+gb.fit(X_train_processed, y_train)
+y_pred_gb = gb.predict(X_test_processed)
+
+# Add GB predictions to your results DataFrame
+results_df['Predicted_GB'] = np.round(y_pred_gb, 2)
+
+mse_gb = mean_squared_error(y_test, y_pred_gb)
+r2_gb  = r2_score(y_test, y_pred_gb)
+print("\nGradient Boosting Regressor Evaluation:")
+print(f"  MSE: {mse_gb:.2f}")
+print(f"  R²:  {r2_gb:.2f}")
+
+# === Optional: compare side-by-side ===
+print("\nComparison:\n", results_df.head(10))
