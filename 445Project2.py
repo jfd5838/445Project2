@@ -8,8 +8,13 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor # Added RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-DATA_FILE_PATH = r'C:\Users\21ada\445Project2\TariffData.csv' # Path Changes for Each person
+sns.set(style="whitegrid")  # Optional: makes plots look nicer
+
+
+DATA_FILE_PATH = r'C:\Users\jtdem\PycharmProjects\445Project2\TariffData.csv' # Path Changes for Each person
 
 # Loading the Data
 try:
@@ -236,3 +241,33 @@ for name, metrics in evaluations.items():
     print(f"  R²:  {metrics['R2']:.4f}")
 
 print("\nScript finished.")
+
+# === Plotting Predictions ===
+print("\n--- Plotting Model Predictions ---")
+
+def plot_model_predictions(y_true, y_pred, model_name):
+    plt.figure(figsize=(10, 5))
+
+    # Scatter: Actual vs Predicted
+    plt.subplot(1, 2, 1)
+    sns.scatterplot(x=y_true, y=y_pred)
+    plt.plot([y_true.min(), y_true.max()], [y_true.min(), y_true.max()], 'r--')
+    plt.xlabel("Actual")
+    plt.ylabel("Predicted")
+    plt.title(f"{model_name} - Actual vs Predicted")
+
+    # Residual Plot
+    plt.subplot(1, 2, 2)
+    residuals = y_true - y_pred
+    sns.histplot(residuals, kde=True)
+    plt.title(f"{model_name} - Residuals Distribution")
+    plt.xlabel("Residual (Actual - Predicted)")
+
+    plt.tight_layout()
+    plt.show()
+
+
+# Plotting for each model
+plot_model_predictions(y_test, y_pred_lr, "Linear Regression")
+plot_model_predictions(y_test, y_pred_gb, "Gradient Boosting")
+plot_model_predictions(y_test, y_pred_rf, "Random Forest")
