@@ -5,13 +5,13 @@ In this final project for CMPSC 445, we set out to build a Tariff Prediction Web
 **Significance of the Project:**
 
 Tariffs remain a cornerstone of international trade policy, influencing prices, consumer welfare, and diplomatic relations. Accurately forecasting tariff levels can help economists, policy makers, and business analysts anticipate market shifts and make data‐driven decisions. Our app is unique in that it:
-Automates the end‐to‐end workflow from raw data to prediction.
 
+* Automates the end‐to‐end workflow from raw data to prediction.
 
 * Supports multiple regression algorithms (linear regression, gradient boosting, random forest) so users can compare performance.
 
-
 * Provides interactive visualizations of actual vs. predicted values and residual distributions.
+  
 
 **Instructions for Web Usage:**
 
