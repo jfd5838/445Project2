@@ -31,7 +31,8 @@ To ensure any user can replicate our workflow, follow these steps:
    ```  
    A local URL (e.g., `http://localhost:8501`) will open in your browser.
 
-3. **Upload a tariff dataset**  
+3. **Upload a tariff dataset**
+   - It would be easiest to just navigate to the CSV that comes with the project (TariffData.csv)
    - The CSV must have:  
      - **Column A**: `Country Name` (string)  
      - **Column B**: `Country Code` (ISO Alpha-3)  
