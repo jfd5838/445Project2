@@ -1,3 +1,5 @@
+# AI Tarriff Predictor
+
 **Project Descripton:**
 
 In this final project for CMPSC 445, we set out to build a Tariff Prediction Web Application that leverages historical tariff data to predict the average applied tariff rate for a given country in 2022. Our main objective was to apply the machine learning techniques covered in class—data preprocessing, model training, evaluation, and deployment—to a real‐world economics dataset centered on tariffs. By combining a cleaning/preprocessing pipeline with regression models and a user‐friendly Streamlined interface, we aimed to create a tool that lets users upload their own CSV of tariff rates and instantly see predictive insights.
