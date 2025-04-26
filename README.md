@@ -102,6 +102,10 @@ matplotlib>=3.4
 
 > *Tested on 267 countries, 22 years of data.*
 
+![Image](https://github.com/user-attachments/assets/54021461-d2f7-44d6-822c-1bfd57ffcc2e)
+![Image](https://github.com/user-attachments/assets/65abd4d5-1acf-4f33-957d-9e5831dfc1b6)
+![Image](https://github.com/user-attachments/assets/65abd4d5-1acf-4f33-957d-9e5831dfc1b6)
+
 **Data Collection:**
 - **Original Source**: Compiled from multiple national tariff databases (WTO, World Bank) into a unified CSV.  
 - **Data Size**:  
