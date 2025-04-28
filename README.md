@@ -9,7 +9,7 @@ In this final project for CMPSC 445, we set out to build a Tariff Prediction Web
 
 ![Image](https://github.com/user-attachments/assets/3147a6df-197a-4f1d-82cf-38a822343867)
 
-Tariffs remain a cornerstone of international trade policy, influencing prices, consumer welfare, and diplomatic relations. Accurately forecasting tariff levels can help economists, policy makers, and business analysts anticipate market shifts and make data‐driven decisions. Our app is unique in that it:
+Tariffs remain a cornerstone of international trade policy, influencing prices, consumer welfare, and diplomatic relations. Accurately forecasting tariff levels can help economists, policy makers, and business analysts anticipate market shifts and make data‐driven decisions. In the past few months, tariffs have become a major subject of conversation and debate, especially in regard to the United States. Given the latest economic policies which have made a sudden and major shift in tariffs surrounding the US, prediciton of tariff rates has become more relevant than ever before. Our app is unique in that it:
 
 * Automates the end‐to‐end workflow from raw data to prediction.
 
