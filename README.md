@@ -1,4 +1,4 @@
-# AI Tarriff Predictor
+# AI Tariff Predictor
 ![Image](https://github.com/user-attachments/assets/444bdabb-e161-4425-80ad-57d097675bb2)
 
 **Project Descripton:**
