@@ -63,6 +63,7 @@ if uploaded_file:
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
+    identifier_test = identifier_info.loc[y_test.index].reset_index(drop=True)
 
     # Fit and transform
     preprocessor.fit(X_train)
@@ -99,6 +100,29 @@ if uploaded_file:
         st.write(f"R² Score: {res['r2']:.4f}")
         st.divider()
 
+    # Model selection for predictions
+    st.subheader("📋 View Model Predictions")
+    selected_model_name = st.selectbox("Select a model to view predictions", list(results.keys()))
+
+    # Display predictions
+    selected_predictions = results[selected_model_name]['y_pred']
+    predictions_df = pd.DataFrame({
+        identifier_column if identifier_column else "Index": identifier_test,
+        "Actual": y_test.reset_index(drop=True),
+        "Predicted": np.round(selected_predictions, 2)
+    })
+
+    st.dataframe(predictions_df.head(20), use_container_width=True)
+
+    # Download button
+    csv = predictions_df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="Download Predictions as CSV",
+        data=csv,
+        file_name=f"{selected_model_name}_predictions.csv",
+        mime='text/csv'
+    )
+
     # Plot predictions
     st.subheader("📈 Prediction Plots")
 
@@ -117,5 +141,4 @@ if uploaded_file:
 
         st.pyplot(fig)
 
-    for name, res in results.items():
-        plot_results(y_test, res['y_pred'], name)
+    plot_results(y_test, selected_predictions, selected_model_name)
